@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.QuranIrabRobot" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/bg_dark</item>
+        <item name="colorPrimary">@color/gold</item>
+        <item name="colorPrimaryDark">@color/bg_dark</item>
+    </style>
+</resources>
