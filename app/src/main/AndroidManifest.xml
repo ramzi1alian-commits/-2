@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- عمدًا: لا توجد صلاحية INTERNET — التطبيق يعمل بالكامل من ملفات محلية داخل الـ APK -->
+    <!-- تُستخدم فقط إذا فعّل المستخدم "الوضع الذكي" الاختياري لإرسال السؤال
+         وسياقه المرجعي إلى الخادم الوسيط الخاص به. بدون تفعيل هذا الوضع،
+         التطبيق لا يجري أي اتصال شبكة إطلاقًا ويعمل أوفلاين بالكامل كالمعتاد. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"

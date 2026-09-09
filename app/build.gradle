@@ -34,6 +34,8 @@ android {
     }
 }
 
+// لا توجد أي تبعيات خارجية عمدًا: التطبيق نشاط واحد بسيط يعرض WebView محلي
+// فقط، ولا حاجة لأي مكتبة AndroidX. هذا يتجنّب أي تعارض إصدارات Kotlin
+// القادم من تبعيات transitively مثل androidx.appcompat.
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.7.0'
 }

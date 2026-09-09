@@ -231,6 +231,84 @@
     padding:40px;
     color:var(--muted);
   }
+
+  .smart-toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-top:14px;
+    padding-top:14px;
+    border-top:1px dashed var(--border);
+    flex-wrap:wrap;
+  }
+  .smart-toggle-row .left{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .switch{
+    position:relative;
+    display:inline-block;
+    width:42px;
+    height:24px;
+    flex-shrink:0;
+  }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider{
+    position:absolute; cursor:pointer; inset:0;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:24px;
+    transition:.2s;
+  }
+  .slider:before{
+    position:absolute;
+    content:"";
+    height:16px; width:16px;
+    right:3px; bottom:3px;
+    background:var(--muted);
+    border-radius:50%;
+    transition:.2s;
+  }
+  .switch input:checked + .slider{ background:rgba(201,163,90,0.25); border-color:var(--gold); }
+  .switch input:checked + .slider:before{ transform:translateX(-18px); background:var(--gold); }
+  .smart-label{ font-size:13px; color:var(--text); }
+  .smart-sub{ font-size:11px; color:var(--muted); font-family:Arial, sans-serif; }
+  .settings-link{
+    font-size:12px;
+    color:var(--gold);
+    background:none;
+    border:none;
+    padding:4px 0;
+    text-decoration:underline;
+    cursor:pointer;
+  }
+  .settings-panel{
+    display:none;
+    margin-top:10px;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px;
+    gap:8px;
+    flex-direction:column;
+  }
+  .settings-panel.open{ display:flex; }
+  .settings-panel input{ font-family:Arial, sans-serif; direction:ltr; text-align:left; font-size:13px; }
+  .settings-panel .hint{ font-size:11px; color:var(--muted); line-height:1.7; }
+  .badge-smart{
+    display:inline-block;
+    font-size:10px;
+    color:#0f1a1a;
+    background:var(--gold);
+    padding:1px 8px;
+    border-radius:10px;
+    margin-inline-start:6px;
+    font-family:Arial, sans-serif;
+    vertical-align:middle;
+  }
+
   @media (max-width:600px){
     .ayah-text{ font-size:26px; }
     header h1{ font-size:22px; }
@@ -265,12 +343,36 @@
   <div id="result"></div>
 
   <div class="search-box">
-    <label style="font-size:12px;color:var(--muted);">اسأل عن كلمة داخل الآية الحالية</label>
+    <label style="font-size:12px;color:var(--muted);" id="askLabel">اسأل عن كلمة داخل الآية الحالية</label>
     <div class="ask-row">
-      <input type="text" id="askInput" placeholder="اكتب الكلمة كما وردت في الآية، مثل: بِسْمِ">
+      <input type="text" id="askInput" placeholder="اكتب الكلمة أو سؤالك الحر عن الآية">
       <button id="askBtn">اسأل</button>
     </div>
     <div class="ask-answer" id="askAnswer"></div>
+
+    <div class="smart-toggle-row">
+      <div class="left">
+        <label class="switch">
+          <input type="checkbox" id="smartToggle">
+          <span class="slider"></span>
+        </label>
+        <div>
+          <div class="smart-label">الوضع الذكي <span class="badge-smart" id="smartBadge" style="display:none;">Claude AI</span></div>
+          <div class="smart-sub">إجابة حوارية حرة عبر الإنترنت، مبنية حصرًا على نفس البيانات المرجعية أعلاه</div>
+        </div>
+      </div>
+      <button class="settings-link" id="settingsLink">⚙ إعداد رابط الخادم</button>
+    </div>
+    <div class="settings-panel" id="settingsPanel">
+      <label style="font-size:12px;color:var(--muted);">رابط الخادم الوسيط (Cloudflare Worker)</label>
+      <input type="text" id="workerUrlInput" placeholder="https://your-worker.workers.dev">
+      <div class="hint">
+        يُخزَّن هذا الرابط على جهازك فقط. الوضع الذكي يرسل نص الآية وتحليلها المرجعي
+        (لا شيء غيره) إلى هذا الخادم مرة واحدة عند كل سؤال، ويحتاج اتصالًا بالإنترنت.
+        بدون تفعيله، يبقى التطبيق يعمل بالكامل أوفلاين كالمعتاد.
+      </div>
+      <button id="saveWorkerUrl">حفظ</button>
+    </div>
   </div>
 </main>
 
@@ -375,6 +477,73 @@ function highlight(idx){
   if (cEl) cEl.classList.add('active');
 }
 
+// ---------- الوضع الذكي (اختياري، يحتاج إنترنت) ----------
+const smartToggle = document.getElementById('smartToggle');
+const smartBadge = document.getElementById('smartBadge');
+const settingsLink = document.getElementById('settingsLink');
+const settingsPanel = document.getElementById('settingsPanel');
+const workerUrlInput = document.getElementById('workerUrlInput');
+const saveWorkerUrl = document.getElementById('saveWorkerUrl');
+
+function loadSettings(){
+  try{
+    const on = localStorage.getItem('quran_smart_mode') === '1';
+    const url = localStorage.getItem('quran_worker_url') || '';
+    smartToggle.checked = on;
+    smartBadge.style.display = on ? 'inline-block' : 'none';
+    workerUrlInput.value = url;
+  }catch(e){ /* localStorage قد لا يعمل في بعض السياقات، لا مشكلة */ }
+}
+
+smartToggle.addEventListener('change', ()=>{
+  try{ localStorage.setItem('quran_smart_mode', smartToggle.checked ? '1' : '0'); }catch(e){}
+  smartBadge.style.display = smartToggle.checked ? 'inline-block' : 'none';
+  if (smartToggle.checked && !(localStorage.getItem('quran_worker_url')||'')){
+    settingsPanel.classList.add('open');
+  }
+});
+
+settingsLink.addEventListener('click', ()=>{
+  settingsPanel.classList.toggle('open');
+});
+
+saveWorkerUrl.addEventListener('click', ()=>{
+  const url = workerUrlInput.value.trim();
+  try{ localStorage.setItem('quran_worker_url', url); }catch(e){}
+  settingsPanel.classList.remove('open');
+});
+
+function buildContext(words){
+  return words.map(w =>
+    `${w.w} — النوع: ${w.p || '—'}، العلاقة الإعرابية: ${w.r || '—'}، الحالة: ${w.c || '—'}. الشرح المرجعي: ${w.e}`
+  ).join('\n');
+}
+
+async function askSmart(words, q){
+  let url = '';
+  try{ url = localStorage.getItem('quran_worker_url') || ''; }catch(e){}
+  if (!url){
+    askAnswer.textContent = 'فعّل الوضع الذكي أولًا واضبط رابط الخادم الوسيط من زر "⚙ إعداد رابط الخادم".';
+    return;
+  }
+  askAnswer.textContent = 'جارٍ سؤال Claude…';
+  try{
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: buildContext(words), question: q })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error){
+      askAnswer.textContent = 'تعذّر الحصول على رد: ' + (data.error || res.status);
+      return;
+    }
+    askAnswer.textContent = data.answer;
+  }catch(e){
+    askAnswer.textContent = 'تعذّر الاتصال بالخادم. تحقق من الإنترنت ومن صحة الرابط.';
+  }
+}
+
 function doAsk(){
   const surah = parseInt(surahSelect.value, 10);
   const ayah = parseInt(ayahInput.value, 10);
@@ -382,9 +551,15 @@ function doAsk(){
   const q = askInput.value.trim();
   askAnswer.style.display = 'block';
   if (!q){
-    askAnswer.textContent = 'اكتب كلمة من الآية أولًا.';
+    askAnswer.textContent = 'اكتب سؤالك أو كلمة من الآية أولًا.';
     return;
   }
+
+  if (smartToggle.checked){
+    askSmart(words, q);
+    return;
+  }
+
   const found = words.find(w => q.includes(w.w) || w.w.includes(q));
   if (found){
     askAnswer.textContent = found.e;
@@ -393,9 +568,11 @@ function doAsk(){
     const cEl = document.getElementById('card-'+idx);
     if (cEl) cEl.scrollIntoView({behavior:'smooth', block:'center'});
   } else {
-    askAnswer.textContent = 'أستطيع تحليل الآية، لكن السؤال لا يحدد كلمة موجودة فيها بعينها. اذكر الكلمة كما وردت في المصحف.';
+    askAnswer.textContent = 'أستطيع تحليل الآية بمطابقة الكلمات حرفيًا في الوضع العادي (بلا إنترنت). لأسئلة حرة بأي صياغة، فعّل الوضع الذكي أعلاه، أو اذكر الكلمة كما وردت في المصحف.';
   }
 }
+
+loadSettings();
 
 surahSelect.addEventListener('change', ()=>{ ayahInput.value = 1; renderAyah(); });
 ayahInput.addEventListener('change', renderAyah);
